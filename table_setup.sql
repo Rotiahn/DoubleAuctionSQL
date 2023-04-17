@@ -8,7 +8,9 @@ CREATE TABLE buyer_order_list (
     ,buyer_id   INT     NOT NULL
     ,qty        INT     NOT NULL
     ,price      money   NOT NULL
-)
+
+    ,UNIQUE(buyer_id,price)
+    )
 ;
 
 
