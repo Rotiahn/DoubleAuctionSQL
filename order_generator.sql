@@ -6,16 +6,16 @@
 --Bids/Buyer: 1-5
 --Min Qty:1
 --Max Qty:100
---Max Price: $9.99
---Min Price: $0.01
+--Max Price: $100
+--Min Price: $1
 
 
-INSERT INTO buyer_order_list
+INSERT INTO buyer_order_list (buyer_id,qty,price)
 SELECT 
      buyer_id
-    ,buyer_bid_id
+    --,buyer_bid_id
     ,CEIL(RANDOM()*100)::INT AS qty
-    ,(CEIL(RANDOM()*1000)::numeric::money /100)::money AS price
+    ,CEIL(RANDOM()*100)::numeric::money AS price
 FROM
     (
         SELECT 
