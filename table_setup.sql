@@ -1,7 +1,7 @@
 
 
 
-
+DROP TABLE IF EXISTS buyer_order_list;
 
 CREATE TABLE buyer_order_list (
      order_id   SERIAL  
