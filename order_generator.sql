@@ -2,7 +2,7 @@
 
 --Query to generate order list contents
 
---Buyers: 10
+--Buyers: 1000
 --Bids/Buyer: 1-5
 --Min Qty:1
 --Max Qty:100
@@ -29,7 +29,7 @@ FROM
                 ,generate_series(1,CEIL(RANDOM()*5)::INT) AS buyer_bid_id
 
             FROM
-                (SELECT generate_series(1,10) AS buyer_id) as buyer_list
+                (SELECT generate_series(1,1000) AS buyer_id) as buyer_list
 
         ) AS buyer_bidlist
     ) AS agg_buyer_bidlist 
@@ -62,7 +62,7 @@ FROM
                 ,generate_series(1,CEIL(RANDOM()*5)::INT) AS seller_bid_id
 
             FROM
-                (SELECT generate_series(1,10) AS seller_id) as seller_list
+                (SELECT generate_series(1,1000) AS seller_id) as seller_list
 
         ) AS seller_bidlist
     ) AS agg_seller_bidlist 
