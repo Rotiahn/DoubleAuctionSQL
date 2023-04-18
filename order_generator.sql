@@ -28,6 +28,8 @@ FROM
     ) AS buyer_bidlist
 ON CONFLICT (buyer_id,price) DO UPDATE
     SET qty = buyer_order_list.qty + excluded.qty
+--ON CONFLICT (buyer_id,price) DO UPDATE
+--    SET qty = buyer_order_list.qty + excluded.qty
 ;
 
 
@@ -51,4 +53,7 @@ FROM
     ) AS seller_bidlist
 ON CONFLICT (seller_id,price) DO UPDATE
     SET qty = seller_order_list.qty + excluded.qty
+    ,price
+--ON CONFLICT (seller_id,price) DO UPDATE
+--    SET qty = seller_order_list.qty + excluded.qty
 ;
