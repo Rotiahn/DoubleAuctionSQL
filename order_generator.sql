@@ -44,7 +44,7 @@ FROM
             ,generate_series(1,CEIL(RANDOM()*5)::INT) AS seller_bid_id
 
         FROM
-            (SELECT generate_series(1,10) AS buyer_id) as seller_list
+            (SELECT generate_series(1,10) AS seller_id) as seller_list
 
     ) AS seller_bidlist
 ;
