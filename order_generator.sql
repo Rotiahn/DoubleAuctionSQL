@@ -26,6 +26,8 @@ FROM
             (SELECT generate_series(1,10) AS buyer_id) as buyer_list
 
     ) AS buyer_bidlist
+ON CONFLICT (buyer_id,price) DO UPDATE
+    SET qty = buyer_order_list.qty + excluded.qty
 ;
 
 
@@ -47,4 +49,6 @@ FROM
             (SELECT generate_series(1,10) AS seller_id) as seller_list
 
     ) AS seller_bidlist
+ON CONFLICT (seller_id,price) DO UPDATE
+    SET qty = seller_order_list.qty + excluded.qty
 ;
