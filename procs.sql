@@ -1,4 +1,57 @@
 ----------------------
+-- Proc name: auc_buyorderlist_validate_verbose
+-- Proc description: Verify that a relation is valid and complete buy orderlist (any proc which takes a buy order list as an input should accept this buy orderlist without issues)
+-- Proc inputs: relation
+-- Proc output: boolean (true/false)
+
+CREATE OR REPLACE FUNCTION auc_validate_buyorderlist_verbose (table_to_check regclass)
+RETURNS TABLE (test TEXT, type_check BOOLEAN, not_null BOOLEAN)
+AS $$
+
+--NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
+
+WITH tabledefs AS (
+    SELECT * FROM pg_attribute WHERE attrelid=$1::regclass
+--    SELECT * FROM pg_attribute WHERE attrelid='buyer_order_list'::regclass
+--    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
+)
+
+--Check buyer_id is INT NOT NULL
+SELECT 
+    'buyer_id' AS test
+    ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+    ,attnotnull AS not_null
+    --,* 
+FROM tabledefs td
+WHERE attname='buyer_id'
+
+UNION ALL
+--Check qty is INT NOT NULL
+SELECT 
+    'qty' AS test
+    ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+    ,attnotnull AS not_null
+    --,* 
+FROM tabledefs td
+WHERE attname='qty'
+
+UNION ALL
+--Check price is money NOT NULL
+SELECT 
+    'price' AS test
+    ,td.atttypid IN (790) AS type_check --(money)
+    ,attnotnull AS not_null
+    --,* 
+FROM tabledefs td
+WHERE attname='price'
+
+$$ LANGUAGE SQL
+COST 20
+;
+
+
+
+----------------------
 -- Proc name: auc_buyorderlist_validate
 -- Proc description: Verify that a relation is valid and complete buy orderlist (any proc which takes a buy order list as an input should accept this buy orderlist without issues)
 -- Proc inputs: relation
@@ -24,34 +77,7 @@ FROM (
         test
         ,type_check AND not_null AS pass
     FROM (
-        --Check buyer_id is INT NOT NULL
-        SELECT 
-            'buyer_id' AS test
-            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
-            ,attnotnull AS not_null
-            --,* 
-        FROM tabledefs td
-        WHERE attname='buyer_id'
-
-        UNION ALL
-        --Check qty is INT NOT NULL
-        SELECT 
-            'qty' AS test
-            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
-            ,attnotnull AS not_null
-            --,* 
-        FROM tabledefs td
-        WHERE attname='qty'
-
-        UNION ALL
-        --Check price is money NOT NULL
-        SELECT 
-            'price' AS test
-            ,td.atttypid IN (790) AS type_check --(money)
-            ,attnotnull AS not_null
-            --,* 
-        FROM tabledefs td
-        WHERE attname='price'
+       SELECT auc_validate_buyorderlist($1)
     ) AS tests
 ) all_tests
 
