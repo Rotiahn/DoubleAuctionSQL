@@ -1,3 +1,13 @@
+--Nuke All Functions and Procedures
+DROP FUNCTION  IF EXISTS auc_validate_buyorderlist_verbose;
+DROP FUNCTION  IF EXISTS auc_validate_buyorderlist;
+DROP FUNCTION  IF EXISTS auc_validate_sellorderlist_verbose;
+DROP FUNCTION  IF EXISTS auc_validate_sellorderlist;
+DROP PROCEDURE IF EXISTS auc_create_buyorderlist;
+DROP PROCEDURE IF EXISTS auc_create_sellorderlist;
+
+
+
 ----------------------
 -- Proc name: auc_buyorderlist_validate_verbose
 -- Proc description: Verify that a relation is valid and complete buy orderlist (any proc which takes a buy order list as an input should accept this buy orderlist without issues)
