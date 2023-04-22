@@ -56,7 +56,8 @@ FROM tabledefs td
 WHERE attname='price'
 
 $$ LANGUAGE SQL
-COST 20
+COST 10
+STABLE
 ;
 
 
@@ -87,6 +88,7 @@ FROM (
 ) all_tests
 
 $$ LANGUAGE SQL
+STABLE
 ;
 
 ----------------------
@@ -137,7 +139,8 @@ WITH tabledefs AS (
         WHERE attname='price'
 
 $$ LANGUAGE SQL
-COST 20
+COST 10
+STABLE
 ;
 
 
@@ -166,6 +169,7 @@ FROM (
 ) all_tests
 
 $$ LANGUAGE SQL
+STABLE
 ;
 
 ----------------------
