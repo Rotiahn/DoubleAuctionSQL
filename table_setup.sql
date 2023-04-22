@@ -1,7 +1,7 @@
 
 
 
-DROP TABLE IF EXISTS buyer_order_list;
+DROP TABLE IF EXISTS buyer_order_list CASCADE;
 
 CREATE TABLE buyer_order_list (
      order_id   SERIAL  
@@ -14,7 +14,7 @@ CREATE TABLE buyer_order_list (
 ;
 
 
-DROP TABLE IF EXISTS seller_order_list;
+DROP TABLE IF EXISTS seller_order_list CASCADE;
 
 CREATE TABLE seller_order_list (
      order_id   SERIAL  
