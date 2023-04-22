@@ -4,7 +4,7 @@
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
 
-CREATE OR REPLACE FUNCTION auc_buyorderlist_validate (table_to_check regclass)
+CREATE OR REPLACE FUNCTION auc_validate_buyorderlist (table_to_check regclass)
 RETURNS BOOLEAN
 AS $$
 
@@ -65,7 +65,7 @@ COST 20
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
 
-CREATE OR REPLACE FUNCTION auc_sellorderlist_validate (table_to_check regclass)
+CREATE OR REPLACE FUNCTION auc_validate_sellorderlist (table_to_check regclass)
 RETURNS BOOLEAN
 AS $$
 
