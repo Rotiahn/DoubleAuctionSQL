@@ -30,11 +30,10 @@ CALL auc_create_sellorderlist('seller_order_list');
 DROP TABLE IF EXISTS transaction_list CASCADE;
 CREATE TABLE transaction_list (
     transact_id     SERIAL
-    ,buyer_id       INT NOT NULL
-    ,seller_id      INT NOT NULL
+    ,type           text NOT NULL --('buy' or 'sell')
+    ,entity_id      INT NOT NULL --buyer_id or seller_id depending on type
     ,qty            INT NOT NULL
     ,price          money NOT NULL
 
-    ,UNIQUE(buyer_id,seller_id)
 )
 ;
