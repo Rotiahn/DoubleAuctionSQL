@@ -131,6 +131,27 @@ COST 20
 --Tests:
 --auc_create_buyorderlist Test 1:  Run validate on name_of_table
 
+CREATE OR REPLACE PROCEDURE auc_create_buyorderlist (tablename varchar(30))
+AS $$
+
+BEGIN
+    EXECUTE format('
+        CREATE TABLE %I (
+        order_id   SERIAL  
+        ,buyer_id   INT     NOT NULL
+        ,qty        INT     NOT NULL
+        ,price      money   NOT NULL
+
+        ,UNIQUE(buyer_id,price)
+        )
+        ;
+    ', tablename)
+;
+END
+
+$$ LANGUAGE PLPGSQL
+;
+
 
 ----------------------
 -- Proc name auc_create_sellorderlist
