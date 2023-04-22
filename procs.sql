@@ -4,6 +4,60 @@
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
 
+CREATE OR REPLACE FUNCTION auc_buyorderlist_validate (table_to_check regclass)
+RETURNS BOOLEAN
+AS $$
+
+--NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
+
+WITH tabledefs AS (
+    SELECT * FROM pg_attribute WHERE attrelid=$1::regclass
+--    SELECT * FROM pg_attribute WHERE attrelid='buyer_order_list'::regclass
+--    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
+)
+
+SELECT 
+        bool_and(pass)
+    AND count(*)=3
+FROM (
+    SELECT 
+        test
+        ,type_check AND not_null AS pass
+    FROM (
+        --Check buyer_id is INT NOT NULL
+        SELECT 
+            'buyer_id' AS test
+            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='buyer_id'
+
+        UNION ALL
+        --Check qty is INT NOT NULL
+        SELECT 
+            'qty' AS test
+            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='qty'
+
+        UNION ALL
+        --Check price is money NOT NULL
+        SELECT 
+            'price' AS test
+            ,td.atttypid IN (790) AS type_check --(money)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='price'
+    ) AS tests
+) all_tests
+
+$$ LANGUAGE SQL
+COST 20
+;
 
 ----------------------
 -- Proc name: auc_sellorderlist_validate
