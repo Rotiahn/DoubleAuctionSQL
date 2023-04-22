@@ -73,12 +73,6 @@ AS $$
 
 --NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
 
-WITH tabledefs AS (
-    SELECT * FROM pg_attribute WHERE attrelid=$1::regclass
---    SELECT * FROM pg_attribute WHERE attrelid='buyer_order_list'::regclass
---    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
-)
-
 SELECT 
         bool_and(pass)
     AND count(*)=3
@@ -87,22 +81,22 @@ FROM (
         test
         ,type_check AND not_null AS pass
     FROM (
-       SELECT auc_validate_buyorderlist($1)
+       SELECT (auc_validate_buyorderlist_verbose($1)).*
+       --SELECT (auc_validate_buyorderlist_verbose('buy_orders')).*
     ) AS tests
 ) all_tests
 
 $$ LANGUAGE SQL
-COST 20
 ;
 
 ----------------------
--- Proc name: auc_sellorderlist_validate
+-- Proc name: auc_sellorderlist_validate_verbose
 -- Proc description: Verify that a relation is valid and complete sell orderlist (any proc which takes a sell order list as an input should accept this sell orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
 
-CREATE OR REPLACE FUNCTION auc_validate_sellorderlist (table_to_check regclass)
-RETURNS BOOLEAN
+CREATE OR REPLACE FUNCTION auc_validate_sellorderlist_verbose (table_to_check regclass)
+RETURNS TABLE (test TEXT, type_check BOOLEAN, not_null BOOLEAN)
 AS $$
 
 --NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
@@ -113,14 +107,6 @@ WITH tabledefs AS (
 --    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
 )
 
-SELECT 
-        bool_and(pass)
-    AND count(*)=3
-FROM (
-    SELECT 
-        test
-        ,type_check AND not_null AS pass
-    FROM (
         --Check seller_id is INT NOT NULL
         SELECT 
             'seller_id' AS test
@@ -149,13 +135,38 @@ FROM (
             --,* 
         FROM tabledefs td
         WHERE attname='price'
-    ) AS tests
-) all_tests
 
 $$ LANGUAGE SQL
 COST 20
 ;
 
+
+----------------------
+-- Proc name: auc_sellorderlist_validate
+-- Proc description: Verify that a relation is valid and complete sell orderlist (any proc which takes a sell order list as an input should accept this sell orderlist without issues)
+-- Proc inputs: relation
+-- Proc output: boolean (true/false)
+
+CREATE OR REPLACE FUNCTION auc_validate_sellorderlist (table_to_check regclass)
+RETURNS BOOLEAN
+AS $$
+
+--NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
+
+SELECT 
+        bool_and(pass)
+    AND count(*)=3
+FROM (
+    SELECT 
+        test
+        ,type_check AND not_null AS pass
+    FROM (
+        SELECT (auc_validate_sellorderlist_verbose($1)).*
+    ) AS tests
+) all_tests
+
+$$ LANGUAGE SQL
+;
 
 ----------------------
 -- Proc name auc_create_buyorderlist
