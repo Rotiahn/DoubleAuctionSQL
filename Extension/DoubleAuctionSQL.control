@@ -1,0 +1,5 @@
+# DoubleAuctionSQL extension
+comment = 'A postgreSQL library of functions & procedures for running Double Auctions'
+default_version = '0.1'
+# relocatable because of no assumed schema
+relocatable = true

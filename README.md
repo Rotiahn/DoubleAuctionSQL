@@ -11,3 +11,16 @@ A postgreSQL library with the aim of providing a set of tools for managing Doubl
 
 ---
 Note: DoubleAuctionSQL is tested in PostgreSQL 15.  The procs.sql file is PostgreSQL specific and may not work on earlier versions of PostgreSQL or on other RDMS.
+---
+
+### Installation:
+```sh
+cd Extension
+cp *.sql *.control /usr/share/postgresql/15/extension/
+```
+
+### Enable Database:
+```sql
+CREATE EXTENSION "DoubleAuctionSQL";
+```
+
