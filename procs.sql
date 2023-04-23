@@ -92,7 +92,7 @@ STABLE
 ;
 
 ----------------------
--- Proc name: auc_sellorderlist_validate_verbose
+-- Proc name: auc_validate_sellorderlist_verbose
 -- Proc description: Verify that a relation is valid and complete sell orderlist (any proc which takes a sell order list as an input should accept this sell orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
@@ -145,7 +145,7 @@ STABLE
 
 
 ----------------------
--- Proc name: auc_sellorderlist_validate
+-- Proc name: auc_validate_sellorderlist
 -- Proc description: Verify that a relation is valid and complete sell orderlist (any proc which takes a sell order list as an input should accept this sell orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
@@ -171,6 +171,102 @@ FROM (
 $$ LANGUAGE SQL
 STABLE
 ;
+
+
+
+----------------------
+-- Proc name: auc_validate_transactionlist_verbose
+-- Proc description: Verify that a relation is valid and complete transaction list (any proc which uses a transaction list as an input or output should accept this transaction list without issues)
+-- Proc inputs: relation
+-- Proc output: boolean (true/false)
+
+CREATE OR REPLACE FUNCTION auc_validate_transactionlist_verbose (table_to_check regclass)
+RETURNS TABLE (test TEXT, type_check BOOLEAN, not_null BOOLEAN)
+AS $$
+
+--NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
+
+WITH tabledefs AS (
+    SELECT * FROM pg_attribute WHERE attrelid=$1::regclass
+--    SELECT * FROM pg_attribute WHERE attrelid='buyer_order_list'::regclass
+--    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
+)
+
+        --Check type is TEXT NOT NULL
+        SELECT 
+            'text' AS test
+            ,td.atttypid IN (18,25,1042,1043) AS type_check --(char,text,bpchar,varchar)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='text'
+        
+        UNION ALL
+        --Check entity_id is INT NOT NULL
+        SELECT 
+            'entity_id' AS test
+            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='entity_id'
+
+        UNION ALL
+        --Check qty is INT NOT NULL
+        SELECT 
+            'qty' AS test
+            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='qty'
+
+        UNION ALL
+        --Check price is money NOT NULL
+        SELECT 
+            'price' AS test
+            ,td.atttypid IN (790) AS type_check --(money)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='price'
+
+$$ LANGUAGE SQL
+COST 10
+STABLE
+;
+
+
+----------------------
+-- Proc name: auc_validate_transactionlist
+-- Proc description: Verify that a relation is valid and complete transaction list (any proc which uses a transaction list as an input or output should accept this transaction list without issues)
+-- Proc inputs: relation
+-- Proc output: boolean (true/false)
+
+CREATE OR REPLACE FUNCTION auc_validate_transactionlist (table_to_check regclass)
+RETURNS BOOLEAN
+AS $$
+
+--NOTE: we are using pg_attribute instead of information_schema.columns because we want to be able to validate both views AND tables
+
+SELECT 
+        bool_and(pass)
+    AND count(*)=3
+FROM (
+    SELECT 
+        test
+        ,type_check AND not_null AS pass
+    FROM (
+        SELECT (auc_validate_transactionlist_verbose($1)).*
+    ) AS tests
+) all_tests
+
+$$ LANGUAGE SQL
+STABLE
+;
+
+
+
 
 ----------------------
 -- Proc name auc_create_buyorderlist
