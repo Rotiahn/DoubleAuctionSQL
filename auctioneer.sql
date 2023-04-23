@@ -85,27 +85,22 @@ EXPLAIN ANALYZE
 
 WITH order_straddle AS (
 SELECT 
-     buyer.border_id
-    ,buyer.buyer_id
+     buyer.buyer_id
     ,buyer.bprice
     ,COALESCE(buyer.item_id,seller.item_id) as item_id
     ,seller.sprice
     ,seller.seller_id
-    ,seller.sorder_id
 FROM
     (
         SELECT 
-            border_id
-            ,ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
+             ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
             ,buyer_id
             ,bprice
         FROM
             (
                 SELECT
-                    b.order_id::text
-                    || '.'::text
-                    || generate_series(1,b.qty)::text
-                    AS border_id
+                    b.order_id
+                    ,generate_series(1,b.qty)
                     ,buyer_id
                     ,b.price AS bprice
                 FROM
@@ -114,17 +109,14 @@ FROM
     ) AS buyer 
     ,(
         SELECT 
-            sorder_id
-            ,ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
+             ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
             ,seller_id
             ,sprice
         FROM
         (
             SELECT
-                s.order_id::text
-                || '.'::text
-                || generate_series(1,s.qty)::text
-                AS sorder_id
+                s.order_id
+                ,generate_series(1,s.qty)
                 ,seller_id
                 ,s.price AS sprice
             FROM
