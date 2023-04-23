@@ -3,10 +3,14 @@ DROP FUNCTION  IF EXISTS auc_validate_buyorderlist_verbose;
 DROP FUNCTION  IF EXISTS auc_validate_buyorderlist;
 DROP FUNCTION  IF EXISTS auc_validate_sellorderlist_verbose;
 DROP FUNCTION  IF EXISTS auc_validate_sellorderlist;
+DROP FUNCTION  IF EXISTS auc_validate_transactionlist_verbose;
+DROP FUNCTION  IF EXISTS auc_validate_transactionlist;
 DROP PROCEDURE IF EXISTS auc_create_buyorderlist;
 DROP PROCEDURE IF EXISTS auc_create_sellorderlist;
+DROP PROCEDURE IF EXISTS auc_create_transactionlist;
 
-
+DROP FUNCTION  IF EXISTS auc_findk;
+DROP FUNCTION  IF EXISTS auc_run;
 
 ----------------------
 -- Proc name: auc_buyorderlist_validate_verbose
