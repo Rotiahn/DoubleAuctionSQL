@@ -334,6 +334,39 @@ $$ LANGUAGE PLPGSQL
 
 
 
+----------------------
+-- Proc name auc_create_transactionlist
+-- Proc description: creates an table that meets the criteria of a transactionlist
+-- Proc inputs: name_of_table
+-- Proc outputs: {}
+
+
+--Tests:
+--auc_create_transactionlist Test 1:  Run validate on name_of_table
+
+
+CREATE OR REPLACE PROCEDURE auc_create_transactionlist (tablename varchar(30))
+AS $$
+
+BEGIN
+    EXECUTE format('
+        CREATE TABLE %I (
+            transact_id     SERIAL
+            ,type           text NOT NULL --(''buy'' or ''sell'')
+            ,entity_id      INT NOT NULL --buyer_id or seller_id depending on type
+            ,qty            INT NOT NULL
+            ,price          money NOT NULL
+
+        )
+        ;
+
+    ', tablename)
+;
+END
+
+$$ LANGUAGE PLPGSQL
+;
+
 
 
 
