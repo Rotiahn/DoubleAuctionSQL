@@ -1,3 +1,5 @@
+CREATE EXTENSION "DoubleAuctionSQL";
+
 ---Example auction of 50 sellers and 100 buyers
 
 DROP TABLE IF EXISTS buyer_order_list CASCADE;
