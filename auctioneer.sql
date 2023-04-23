@@ -2,59 +2,161 @@
 DROP VIEW IF EXISTS order_straddle;
 
 CREATE VIEW order_straddle AS
-SELECT
-     sum(b.qty) AS buy_qty
-    ,COALESCE(b.price,s.price) AS price
-    ,sum(s.qty) AS sell_qty
-FROM
-    buyer_order_list b
-    FULL OUTER JOIN seller_order_list s ON (b.price=s.price)
-GROUP BY
-    COALESCE(b.price,s.price) 
-ORDER BY 
-    COALESCE(b.price,s.price) DESC
-;
-
-CREATE VIEW agg_straddle AS
 SELECT 
-     agg_demand.agg_buy
-    ,o.buy_qty
-    ,COALESCE(agg_demand.price,agg_supply.price) as price
-    ,o.sell_qty
-    ,agg_supply.agg_sell
-    ,LEAST(
-         COALESCE(agg_buy,0)
-        ,COALESCE(agg_sell,0)
-    ) AS max_transact 
+     buyer.border_id
+    ,buyer.buyer_id
+    ,buyer.bprice
+    ,COALESCE(buyer.item_id,seller.item_id) as item_id
+    ,seller.sprice
+    ,seller.seller_id
+    ,seller.sorder_id
 FROM
-    order_straddle o
-    ,(--agg_demand
+    (
         SELECT 
-            sum(b2.buy_qty) AS agg_buy
-            ,os.price
+            border_id
+            ,ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
+            ,buyer_id
+            ,bprice
         FROM
-            order_straddle os
-            INNER JOIN order_straddle b2 ON (b2.price>=os.price)
-        GROUP BY
-            os.price
-    ) AS agg_demand
-    ,(--agg_supply
+            (
+                SELECT
+                    b.order_id::text
+                    || '.'::text
+                    || generate_series(1,b.qty)::text
+                    AS border_id
+                    ,buyer_id
+                    ,b.price AS bprice
+                FROM
+                    buyer_order_list b
+            ) AS b_orders
+    ) AS buyer 
+    ,(
         SELECT 
-            os.price
-            ,sum(s2.sell_qty) AS agg_sell
+            sorder_id
+            ,ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
+            ,seller_id
+            ,sprice
         FROM
-            order_straddle os
-            INNER JOIN order_straddle s2 ON (s2.price<=os.price)
-        GROUP BY
-            os.price
-    ) AS agg_supply
-WHERE
-        agg_demand.price = agg_supply.price
-    AND o.price = agg_demand.price
-    AND o.price = agg_supply.price
-ORDER BY 
-    price desc
+        (
+            SELECT
+                s.order_id::text
+                || '.'::text
+                || generate_series(1,s.qty)::text
+                AS sorder_id
+                ,seller_id
+                ,s.price AS sprice
+            FROM
+                seller_order_list s
+        ) AS s_orders
+    ) as seller 
+
+WHERE 
+    buyer.item_id=seller.item_id
+    
 ;
 
+EXPLAIN ANALYZE 
+SELECT
+     item_id as k
+    ,bprice
+    ,sprice
+FROM order_straddle
+WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
+;
 
-explain analyze select * from agg_straddle order by max_transact desc limit 1;
+--K at 757379
+--bprice =51.00, sprice = 51.00
+
+
+SELECT 
+     count(DISTINCT buyer_id) AS buyers
+    ,count(DISTINCT seller_id) AS sellers
+    ,max(item_id) as agg_qty
+    ,(51*max(item_id))::money AS buyer_cash
+    ,(51*max(item_id))::money AS seller_cash
+FROM 
+    order_straddle
+WHERE 
+    item_id<=357379
+;
+    
+
+    
+    
+WITH order_straddle AS (
+SELECT 
+     buyer.border_id
+    ,buyer.buyer_id
+    ,buyer.bprice
+    ,COALESCE(buyer.item_id,seller.item_id) as item_id
+    ,seller.sprice
+    ,seller.seller_id
+    ,seller.sorder_id
+FROM
+    (
+        SELECT 
+            border_id
+            ,ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
+            ,buyer_id
+            ,bprice
+        FROM
+            (
+                SELECT
+                    b.order_id::text
+                    || '.'::text
+                    || generate_series(1,b.qty)::text
+                    AS border_id
+                    ,buyer_id
+                    ,b.price AS bprice
+                FROM
+                    buyer_order_list b
+            ) AS b_orders
+    ) AS buyer 
+    ,(
+        SELECT 
+            sorder_id
+            ,ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
+            ,seller_id
+            ,sprice
+        FROM
+        (
+            SELECT
+                s.order_id::text
+                || '.'::text
+                || generate_series(1,s.qty)::text
+                AS sorder_id
+                ,seller_id
+                ,s.price AS sprice
+            FROM
+                seller_order_list s
+        ) AS s_orders
+    ) as seller 
+
+WHERE 
+    buyer.item_id=seller.item_id
+
+)
+,kfinder AS (
+    SELECT
+        item_id as k
+        ,bprice
+        ,sprice
+    FROM order_straddle
+    WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
+    
+)
+SELECT 
+     max(kfinder.k)
+    ,max(kfinder.bprice)
+    ,max(kfinder.sprice)
+    ,count(DISTINCT buyer_id) AS buyers
+    ,count(DISTINCT seller_id) AS sellers
+    ,max(item_id) as agg_qty
+    ,(max(kfinder.bprice)*max(item_id))::money AS buyer_cash
+    ,(max(kfinder.sprice)*max(item_id))::money AS seller_cash
+FROM 
+    order_straddle
+    ,kfinder
+WHERE 
+    item_id<=kfinder.k
+;

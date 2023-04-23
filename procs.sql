@@ -243,9 +243,9 @@ $$ LANGUAGE PLPGSQL
 
 ----------------------
 -- Proc name auc_findk
--- Proc description: Finds the optimum price k that generates the most transactions
+-- Proc description: Finds the optimum qty k that generates the most transactions while remaining cash surplus for auctioneer
 -- Proc inputs: buyorderlist,sellorderlist
--- Proc outputs: agg_buy,price,agg_sell,max_transact 
+-- Proc outputs: transact_qty,bprice,sprice
 -- EX: SELECT (auc_findk('buyer_order_list','seller_order_list')).*
 
 CREATE OR REPLACE FUNCTION auc_findk(
@@ -254,10 +254,9 @@ CREATE OR REPLACE FUNCTION auc_findk(
 )
 RETURNS 
 TABLE (
-    agg_buy INT
-    ,price money
-    ,agg_sell INT
-    ,max_transact INT
+     transact_qty BIGINT
+    ,bprice money
+    ,sprice money
 )
 AS $$
 
@@ -270,69 +269,53 @@ BEGIN
     RETURN QUERY
     EXECUTE '
         WITH order_straddle AS (
-            SELECT
-                sum(b.qty) AS buy_qty
-                ,COALESCE(b.price,s.price) AS price
-                ,sum(s.qty) AS sell_qty
-            FROM
-                '|| buyorderlist ||' b
-                FULL OUTER JOIN '|| sellorderlist ||' s ON (b.price=s.price)
-            GROUP BY
-                COALESCE(b.price,s.price) 
-            ORDER BY 
-                COALESCE(b.price,s.price) DESC
-        )
-        , agg_straddle AS (
         SELECT 
-            agg_demand.agg_buy
-            ,o.buy_qty
-            ,COALESCE(agg_demand.price,agg_supply.price) as price
-            ,o.sell_qty
-            ,agg_supply.agg_sell
-            ,LEAST(
-                COALESCE(agg_buy,0)
-                ,COALESCE(agg_sell,0)
-            ) AS max_transact 
+            buyer.bprice
+            ,COALESCE(buyer.item_id,seller.item_id) as item_id
+            ,seller.sprice
         FROM
-            order_straddle o
-            ,(--agg_demand
+            (
                 SELECT 
-                    sum(b2.buy_qty) AS agg_buy
-                    ,os.price
+                    ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
+                    ,bprice
                 FROM
-                    order_straddle os
-                    INNER JOIN order_straddle b2 ON (b2.price>=os.price)
-                GROUP BY
-                    os.price
-            ) AS agg_demand
-            ,(--agg_supply
+                    (
+                        SELECT
+                            b.order_id
+                            ,generate_series(1,b.qty)
+                            ,buyer_id
+                            ,b.price AS bprice
+                        FROM
+                            '|| buyorderlist ||' b
+                    ) AS b_orders
+            ) AS buyer 
+            ,(
                 SELECT 
-                    os.price
-                    ,sum(s2.sell_qty) AS agg_sell
+                    ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
+                    ,sprice
                 FROM
-                    order_straddle os
-                    INNER JOIN order_straddle s2 ON (s2.price<=os.price)
-                GROUP BY
-                    os.price
-            ) AS agg_supply
-        WHERE
-                agg_demand.price = agg_supply.price
-            AND o.price = agg_demand.price
-            AND o.price = agg_supply.price
-        ORDER BY 
-            price desc
+                (
+                    SELECT
+                        s.order_id
+                        ,generate_series(1,s.qty)
+                        ,seller_id
+                        ,s.price AS sprice
+                    FROM
+                        '|| sellorderlist ||' s
+                ) AS s_orders
+            ) as seller 
+
+        WHERE 
+            buyer.item_id=seller.item_id
+
         )
         SELECT
-            agg_buy::INT
-            ,price::money
-            ,agg_sell::INT 
-            ,max_transact::INT
-        FROM agg_straddle 
-        ORDER BY 
-            max_transact DESC 
-        LIMIT 1
-        ;
-    '
+            item_id as transact_qty
+            ,bprice
+            ,sprice
+        FROM order_straddle
+        WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
+        '
     ;
 
     
