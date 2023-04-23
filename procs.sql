@@ -324,3 +324,131 @@ END
 $$ LANGUAGE PLPGSQL
 STABLE
 ;
+
+
+
+
+
+----------------------
+-- Proc name auc_run
+-- Proc description: Finds the optimum qty k that generates the most transactions while remaining cash surplus for auctioneer, then generates transactions
+-- Proc inputs: buyorderlist,sellorderlist
+-- Proc outputs: Table of Buy & Sell transactions
+-- EX: 
+--      INSERT INTO transaction_list (type,entity_id,qty,price)
+--      SELECT (auc_run('buyer_order_list','seller_order_list')).*
+
+CREATE OR REPLACE FUNCTION auc_run(
+     buyorderlist text
+    ,sellorderlist text
+)
+RETURNS 
+TABLE (
+     type TEXT
+    ,entity_id INT
+    ,qty BIGINT
+    ,price MONEY
+)
+AS $$
+
+
+BEGIN
+    ASSERT auc_validate_buyorderlist(buyorderlist),   FORMAT('BuyOrderList not validated: %I',buyorderlist);
+    ASSERT auc_validate_sellorderlist(sellorderlist), FORMAT('SellOrderList not validated: %I',sellorderlist);
+
+
+    RETURN QUERY
+    EXECUTE '
+ 
+        WITH order_straddle AS (
+        SELECT 
+            buyer.buyer_id
+            ,buyer.bprice
+            ,COALESCE(buyer.item_id,seller.item_id) as item_id
+            ,seller.sprice
+            ,seller.seller_id
+        FROM
+            (
+                SELECT 
+                    ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
+                    ,buyer_id
+                    ,bprice
+                FROM
+                    (
+                        SELECT
+                            b.order_id
+                            ,generate_series(1,b.qty)
+                            ,buyer_id
+                            ,b.price AS bprice
+                        FROM
+                            '|| buyorderlist ||' b
+                    ) AS b_orders
+            ) AS buyer 
+            ,(
+                SELECT 
+                    ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
+                    ,seller_id
+                    ,sprice
+                FROM
+                    (
+                        SELECT
+                            s.order_id
+                            ,generate_series(1,s.qty)
+                            ,seller_id
+                            ,s.price AS sprice
+                        FROM
+                            '|| sellorderlist ||' s
+                    ) AS s_orders
+            ) as seller 
+
+        WHERE 
+            buyer.item_id=seller.item_id
+
+        )
+        ,kfinder AS (
+            SELECT
+                item_id as k
+                ,bprice
+                ,sprice
+            FROM order_straddle
+            WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
+            
+        )
+        --INSERT INTO transaction_list (type,entity_id,qty,price)
+        SELECT 
+            ''buy'' AS TYPE
+            ,buyer_id AS entity_id
+            ,count(item_id) AS qty
+            ,kfinder.bprice AS price
+        FROM 
+            order_straddle
+            ,kfinder
+        WHERE 
+            item_id<=kfinder.k
+        GROUP BY
+            buyer_id
+            ,kfinder.bprice
+        UNION ALL
+        SELECT 
+            ''sell'' AS TYPE
+            ,seller_id AS entity_id
+            ,count(item_id) AS qty
+            ,kfinder.sprice AS price
+        FROM 
+            order_straddle
+            ,kfinder
+        WHERE 
+            item_id<=kfinder.k
+        GROUP BY
+            seller_id
+            ,kfinder.sprice
+
+        '
+    ;
+
+    
+    
+END
+$$ LANGUAGE PLPGSQL
+STABLE
+;

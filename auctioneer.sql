@@ -145,7 +145,7 @@ WHERE
     WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
     
 )
-INSERT INTO transaction_list (type,entity_id,qty,price)
+--INSERT INTO transaction_list (type,entity_id,qty,price)
 SELECT 
      'buy' AS TYPE
     ,buyer_id AS entity_id
@@ -174,3 +174,5 @@ GROUP BY
     seller_id
     ,kfinder.sprice
 ;
+
+
