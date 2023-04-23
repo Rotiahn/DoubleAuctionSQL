@@ -1,170 +1,108 @@
+CREATE EXTENSION "DoubleAuctionSQL";
 
-DROP VIEW IF EXISTS order_straddle;
+---Example auction of 50 sellers and 100 buyers
 
-CREATE VIEW order_straddle AS
+DROP TABLE IF EXISTS buyer_order_list CASCADE;
+DROP TABLE IF EXISTS seller_order_list CASCADE;
+DROP TABLE IF EXISTS transaction_list CASCADE;
+
+CALL auc_create_buyorderlist('buyer_order_list');
+CALL auc_create_sellorderlist('seller_order_list');
+CALL auc_create_transactionlist('transaction_list');
+
+
+
+INSERT INTO buyer_order_list (buyer_id,qty,price)
 SELECT 
-     buyer.border_id
-    ,buyer.buyer_id
-    ,buyer.bprice
-    ,COALESCE(buyer.item_id,seller.item_id) as item_id
-    ,seller.sprice
-    ,seller.seller_id
-    ,seller.sorder_id
+     buyer_id
+    ,sum(qty)
+    ,price
 FROM
     (
-        SELECT 
-            border_id
-            ,ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
-            ,buyer_id
-            ,bprice
-        FROM
-            (
-                SELECT
-                    b.order_id::text
-                    || '.'::text
-                    || generate_series(1,b.qty)::text
-                    AS border_id
-                    ,buyer_id
-                    ,b.price AS bprice
-                FROM
-                    buyer_order_list b
-            ) AS b_orders
-    ) AS buyer 
-    ,(
-        SELECT 
-            sorder_id
-            ,ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
-            ,seller_id
-            ,sprice
-        FROM
+    SELECT 
+        buyer_id
+        --,buyer_bid_id
+        ,CEIL(RANDOM()*100)::INT AS qty
+        ,CEIL(RANDOM()*100)::numeric::money AS price
+    FROM
         (
-            SELECT
-                s.order_id::text
-                || '.'::text
-                || generate_series(1,s.qty)::text
-                AS sorder_id
-                ,seller_id
-                ,s.price AS sprice
+            SELECT 
+                buyer_id
+                ,generate_series(1,CEIL(RANDOM()*1)::INT) AS buyer_bid_id
+
             FROM
-                seller_order_list s
-        ) AS s_orders
-    ) as seller 
+                (SELECT generate_series(1,100) AS buyer_id) as buyer_list
 
-WHERE 
-    buyer.item_id=seller.item_id
-    
+        ) AS buyer_bidlist
+    ) AS agg_buyer_bidlist 
+GROUP BY
+     buyer_id
+    ,price
+--ON CONFLICT (buyer_id,price) DO UPDATE
+--    SET qty = buyer_order_list.qty + excluded.qty
 ;
 
-EXPLAIN ANALYZE 
-SELECT
-     item_id as k
-    ,bprice
-    ,sprice
-FROM order_straddle
-WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
-;
-
---K at 757379
---bprice =51.00, sprice = 51.00
 
 
+
+INSERT INTO seller_order_list (seller_id,qty,price)
 SELECT 
-     count(DISTINCT buyer_id) AS buyers
-    ,count(DISTINCT seller_id) AS sellers
-    ,max(item_id) as agg_qty
-    ,(51*max(item_id))::money AS buyer_cash
-    ,(51*max(item_id))::money AS seller_cash
-FROM 
-    order_straddle
-WHERE 
-    item_id<=357379
-;
-    
-
-EXPLAIN ANALYZE    
-
-WITH order_straddle AS (
-SELECT 
-     buyer.buyer_id
-    ,buyer.bprice
-    ,COALESCE(buyer.item_id,seller.item_id) as item_id
-    ,seller.sprice
-    ,seller.seller_id
+     seller_id
+    ,sum(qty)
+    ,price
 FROM
     (
-        SELECT 
-             ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
-            ,buyer_id
-            ,bprice
-        FROM
-            (
-                SELECT
-                    b.order_id
-                    ,generate_series(1,b.qty)
-                    ,buyer_id
-                    ,b.price AS bprice
-                FROM
-                    buyer_order_list b
-            ) AS b_orders
-    ) AS buyer 
-    ,(
-        SELECT 
-             ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
-            ,seller_id
-            ,sprice
-        FROM
+    SELECT 
+        seller_id
+        --,seller_bid_id
+        ,CEIL(RANDOM()*100)::INT AS qty
+        ,CEIL(RANDOM()*100)::numeric::money AS price
+    FROM
         (
-            SELECT
-                s.order_id
-                ,generate_series(1,s.qty)
-                ,seller_id
-                ,s.price AS sprice
+            SELECT 
+                seller_id
+                ,generate_series(1,CEIL(RANDOM()*1)::INT) AS seller_bid_id
+
             FROM
-                seller_order_list s
-        ) AS s_orders
-    ) as seller 
+                (SELECT generate_series(1,50) AS seller_id) as seller_list
 
-WHERE 
-    buyer.item_id=seller.item_id
-
-)
-,kfinder AS (
-    SELECT
-        item_id as k
-        ,bprice
-        ,sprice
-    FROM order_straddle
-    WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
-    
-)
---INSERT INTO transaction_list (type,entity_id,qty,price)
-SELECT 
-     'buy' AS TYPE
-    ,buyer_id AS entity_id
-    ,count(item_id) AS qty
-    ,kfinder.bprice AS price
-FROM 
-    order_straddle
-    ,kfinder
-WHERE 
-    item_id<=kfinder.k
+        ) AS seller_bidlist
+    ) AS agg_seller_bidlist 
 GROUP BY
-    buyer_id
-    ,kfinder.bprice
-UNION ALL
-SELECT 
-     'sell' AS TYPE
-    ,seller_id AS entity_id
-    ,count(item_id) AS qty
-    ,kfinder.sprice AS price
-FROM 
-    order_straddle
-    ,kfinder
-WHERE 
-    item_id<=kfinder.k
-GROUP BY
-    seller_id
-    ,kfinder.sprice
+     seller_id
+    ,price
+--ON CONFLICT (seller_id,price) DO UPDATE
+--    SET qty = seller_order_list.qty + excluded.qty
 ;
 
 
+INSERT INTO transaction_list (type,entity_id,qty,price)
+SELECT (auc_run('buyer_order_list','seller_order_list')).*
+;
+
+
+
+WITH stats AS (
+    SELECT 
+        type
+        ,count(DISTINCT entity_id) AS participants
+        ,sum(qty) AS qty
+        ,sum(qty*price) AS transaction_amt
+    FROM
+        transaction_list
+    GROUP BY
+        type
+)
+SELECT 
+     (SELECT participants from stats where type='buy')  AS buyers
+    ,(SELECT participants from stats where type='sell') AS sellers
+    ,(SELECT MIN(qty) from stats) AS qty_transacted
+    ,(SELECT transaction_amt from stats WHERE type='sell') AS dollars_transfered
+    ,(
+         (SELECT transaction_amt from stats WHERE type='buy') 
+        -(SELECT transaction_amt from stats WHERE type='sell') 
+    ) AS auctioneer_profit
+
+;
+
+    
