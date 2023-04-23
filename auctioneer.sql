@@ -81,8 +81,8 @@ WHERE
 ;
     
 
-    
-    
+EXPLAIN ANALYZE    
+
 WITH order_straddle AS (
 SELECT 
      buyer.border_id
@@ -145,18 +145,32 @@ WHERE
     WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
     
 )
+INSERT INTO transaction_list (type,entity_id,qty,price)
 SELECT 
-     max(kfinder.k)
-    ,max(kfinder.bprice)
-    ,max(kfinder.sprice)
-    ,count(DISTINCT buyer_id) AS buyers
-    ,count(DISTINCT seller_id) AS sellers
-    ,max(item_id) as agg_qty
-    ,(max(kfinder.bprice)*max(item_id))::money AS buyer_cash
-    ,(max(kfinder.sprice)*max(item_id))::money AS seller_cash
+     'buy' AS TYPE
+    ,buyer_id AS entity_id
+    ,count(item_id) AS qty
+    ,kfinder.bprice AS price
 FROM 
     order_straddle
     ,kfinder
 WHERE 
     item_id<=kfinder.k
+GROUP BY
+    buyer_id
+    ,kfinder.bprice
+UNION ALL
+SELECT 
+     'sell' AS TYPE
+    ,seller_id AS entity_id
+    ,count(item_id) AS qty
+    ,kfinder.sprice AS price
+FROM 
+    order_straddle
+    ,kfinder
+WHERE 
+    item_id<=kfinder.k
+GROUP BY
+    seller_id
+    ,kfinder.sprice
 ;
