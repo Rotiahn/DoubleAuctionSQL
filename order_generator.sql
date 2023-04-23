@@ -5,7 +5,7 @@
 --Buyers: 1000
 --Bids/Buyer: 1-5
 --Min Qty:1
---Max Qty:100
+--Max Qty:1000
 --Max Price: $100
 --Min Price: $1
 
