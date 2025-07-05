@@ -17,7 +17,7 @@ DROP FUNCTION  IF EXISTS auc_run;
 -- Proc description: Verify that a relation is valid and complete buy orderlist (any proc which takes a buy order list as an input should accept this buy orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
--- Proc example: SELECT auc_buyorderlist_validate_verbose (buy_order_list)
+-- Proc example: SELECT * FROM auc_buyorderlist_validate_verbose(buyer_order_list)
 
 CREATE OR REPLACE FUNCTION auc_validate_buyorderlist_verbose (table_to_check regclass)
 RETURNS TABLE (test TEXT, type_check BOOLEAN, not_null BOOLEAN)
@@ -30,6 +30,17 @@ WITH tabledefs AS (
 --    SELECT * FROM pg_attribute WHERE attrelid='buyer_order_list'::regclass
 --    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
 )
+
+--Check product_id is INT NOT NULL
+SELECT 
+    'product_id' AS test
+    ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+    ,attnotnull AS not_null
+    --,* 
+FROM tabledefs td
+WHERE attname='product_id'
+
+UNION ALL
 
 --Check buyer_id is INT NOT NULL
 SELECT 
@@ -60,6 +71,7 @@ SELECT
 FROM tabledefs td
 WHERE attname='price'
 
+
 $$ LANGUAGE SQL
 COST 10
 STABLE
@@ -72,6 +84,8 @@ STABLE
 -- Proc description: Verify that a relation is valid and complete buy orderlist (any proc which takes a buy order list as an input should accept this buy orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
+-- Proc example: SELECT * FROM auc_buyorderlist_validate(buyer_order_list)
+
 
 CREATE OR REPLACE FUNCTION auc_validate_buyorderlist (table_to_check regclass)
 RETURNS BOOLEAN
@@ -81,7 +95,7 @@ AS $$
 
 SELECT 
         bool_and(pass)
-    AND count(*)=3
+    AND count(*)=4
 FROM (
     SELECT 
         test
@@ -101,6 +115,7 @@ STABLE
 -- Proc description: Verify that a relation is valid and complete sell orderlist (any proc which takes a sell order list as an input should accept this sell orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
+-- Proc example: SELECT * FROM auc_validate_sellorderlist_verbose(seller_order_list)
 
 CREATE OR REPLACE FUNCTION auc_validate_sellorderlist_verbose (table_to_check regclass)
 RETURNS TABLE (test TEXT, type_check BOOLEAN, not_null BOOLEAN)
@@ -113,6 +128,17 @@ WITH tabledefs AS (
 --    SELECT * FROM pg_attribute WHERE attrelid='buyer_order_list'::regclass
 --    SELECT * FROM pg_attribute WHERE attrelid='seller_order_list'::regclass
 )
+
+        --Check product_id is INT NOT NULL
+        SELECT 
+            'product_id' AS test
+            ,td.atttypid IN (20,21,23) AS type_check --(int8,int2,int4)
+            ,attnotnull AS not_null
+            --,* 
+        FROM tabledefs td
+        WHERE attname='product_id'
+
+        UNION ALL
 
         --Check seller_id is INT NOT NULL
         SELECT 
@@ -154,6 +180,8 @@ STABLE
 -- Proc description: Verify that a relation is valid and complete sell orderlist (any proc which takes a sell order list as an input should accept this sell orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
+-- Proc example: SELECT * FROM auc_validate_sellorderlist(seller_order_list)
+
 
 CREATE OR REPLACE FUNCTION auc_validate_sellorderlist (table_to_check regclass)
 RETURNS BOOLEAN
@@ -163,7 +191,7 @@ AS $$
 
 SELECT 
         bool_and(pass)
-    AND count(*)=3
+    AND count(*)=4
 FROM (
     SELECT 
         test
