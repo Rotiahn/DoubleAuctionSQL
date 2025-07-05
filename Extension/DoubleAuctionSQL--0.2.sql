@@ -1,3 +1,6 @@
+-- complain if script is sourced in psql, rather than via CREATE EXTENSION
+\echo Use "CREATE EXTENSION DoubleAuctionSQL" to load this file. \quit
+
 --Nuke All Functions and Procedures
 DROP FUNCTION  IF EXISTS auc_validate_buyorderlist_verbose;
 DROP FUNCTION  IF EXISTS auc_validate_buyorderlist;
