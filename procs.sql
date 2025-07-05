@@ -533,7 +533,7 @@ STABLE
 -- Proc inputs: buyorderlist,sellorderlist
 -- Proc outputs: Table of Buy & Sell transactions
 -- EX: 
---      INSERT INTO transaction_list (type,entity_id,qty,price)
+--      INSERT INTO transaction_list (type,product_id,entity_id,qty,price)
 --      SELECT (auc_run('buyer_order_list','seller_order_list')).*
 
 CREATE OR REPLACE FUNCTION auc_run(
@@ -542,7 +542,8 @@ CREATE OR REPLACE FUNCTION auc_run(
 )
 RETURNS 
 TABLE (
-     type TEXT
+     transaction_type TEXT
+    ,product_id INT
     ,entity_id INT
     ,qty BIGINT
     ,price MONEY
@@ -560,21 +561,24 @@ BEGIN
  
         WITH order_straddle AS (
         SELECT 
-            buyer.buyer_id
+             buyer.product_id
+            ,buyer.buyer_id
             ,buyer.bprice
             ,COALESCE(buyer.item_id,seller.item_id) as item_id
             ,seller.sprice
             ,seller.seller_id
         FROM
-            (
+              (
                 SELECT 
-                    ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
-                    ,buyer_id
+                     buyer_id
+                    ,product_id
+                    ,ROW_NUMBER() OVER(PARTITION BY product_id ORDER BY bprice DESC) AS item_id
                     ,bprice
                 FROM
                     (
                         SELECT
                             b.order_id
+                            ,product_id
                             ,generate_series(1,b.qty)
                             ,buyer_id
                             ,b.price AS bprice
@@ -584,19 +588,21 @@ BEGIN
             ) AS buyer 
             ,(
                 SELECT 
-                    ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
-                    ,seller_id
+                     seller_id
+                    ,product_id
+                    ,ROW_NUMBER() OVER(PARTITION BY product_id ORDER BY sprice ASC) AS item_id
                     ,sprice
                 FROM
-                    (
-                        SELECT
-                            s.order_id
-                            ,generate_series(1,s.qty)
-                            ,seller_id
-                            ,s.price AS sprice
-                        FROM
-                            '|| sellorderlist ||' s
-                    ) AS s_orders
+                (
+                    SELECT
+                        s.order_id
+                        ,product_id
+                        ,generate_series(1,s.qty)
+                        ,seller_id
+                        ,s.price AS sprice
+                    FROM
+                        '|| sellorderlist ||' s
+                ) AS s_orders
             ) as seller 
 
         WHERE 
@@ -604,17 +610,16 @@ BEGIN
 
         )
         ,kfinder AS (
-            SELECT
-                item_id as k
-                ,bprice
-                ,sprice
-            FROM order_straddle
-            WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
+           SELECT
+                *
+            FROM
+                auc_findk('''|| buyorderlist ||''','''|| sellorderlist ||''') 
             
         )
         --INSERT INTO transaction_list (type,entity_id,qty,price)
         SELECT 
-            ''buy'' AS TYPE
+            ''buy'' AS transaction_type
+            ,kfinder.product_id
             ,buyer_id AS entity_id
             ,count(item_id) AS qty
             ,kfinder.bprice AS price
@@ -622,13 +627,15 @@ BEGIN
             order_straddle
             ,kfinder
         WHERE 
-            item_id<=kfinder.k
+            item_id<=kfinder.transact_qty
         GROUP BY
-            buyer_id
+             kfinder.product_id
+            ,buyer_id
             ,kfinder.bprice
         UNION ALL
         SELECT 
-            ''sell'' AS TYPE
+            ''sell'' AS transaction_type
+            ,kfinder.product_id
             ,seller_id AS entity_id
             ,count(item_id) AS qty
             ,kfinder.sprice AS price
@@ -636,9 +643,10 @@ BEGIN
             order_straddle
             ,kfinder
         WHERE 
-            item_id<=kfinder.k
+            item_id<=kfinder.transact_qty
         GROUP BY
-            seller_id
+             kfinder.product_id
+            ,seller_id
             ,kfinder.sprice
 
         '
