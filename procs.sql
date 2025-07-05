@@ -425,7 +425,7 @@ $$ LANGUAGE PLPGSQL
 -- Proc description: Finds the optimum qty k that generates the most transactions while remaining cash surplus for auctioneer
 -- Proc inputs: buyorderlist,sellorderlist
 -- Proc outputs: transact_qty,bprice,sprice
--- EX: SELECT (auc_findk('buyer_order_list','seller_order_list')).*
+-- EX: SELECT (auc_findk('buyer_order_list','seller_order_list')).*;
 
 CREATE OR REPLACE FUNCTION auc_findk(
      buyorderlist text
@@ -434,7 +434,8 @@ CREATE OR REPLACE FUNCTION auc_findk(
 )
 RETURNS 
 TABLE (
-     transact_qty BIGINT
+    product_id INT
+    ,transact_qty BIGINT
     ,bprice money
     ,sprice money
 )
@@ -450,18 +451,21 @@ BEGIN
     EXECUTE '
         WITH order_straddle AS (
         SELECT 
-            buyer.bprice
+            buyer.product_id
+            ,buyer.bprice
             ,COALESCE(buyer.item_id,seller.item_id) as item_id
             ,seller.sprice
         FROM
             (
                 SELECT 
-                    ROW_NUMBER() OVER(ORDER BY bprice DESC) AS item_id
+                    product_id
+                    ,ROW_NUMBER() OVER(PARTITION BY product_id ORDER BY bprice DESC) AS item_id
                     ,bprice
                 FROM
                     (
                         SELECT
                             b.order_id
+                            ,product_id
                             ,generate_series(1,b.qty)
                             ,buyer_id
                             ,b.price AS bprice
@@ -471,12 +475,14 @@ BEGIN
             ) AS buyer 
             ,(
                 SELECT 
-                    ROW_NUMBER() OVER(ORDER BY sprice ASC) AS item_id
+                    product_id
+                    ,ROW_NUMBER() OVER(PARTITION BY product_id ORDER BY sprice ASC) AS item_id
                     ,sprice
                 FROM
                 (
                     SELECT
                         s.order_id
+                        ,product_id
                         ,generate_series(1,s.qty)
                         ,seller_id
                         ,s.price AS sprice
@@ -486,19 +492,31 @@ BEGIN
             ) as seller 
 
         WHERE 
-            buyer.item_id=seller.item_id
-
+                    buyer.item_id=seller.item_id
+                AND buyer.product_id = seller.product_id
         )
         SELECT
-            item_id as transact_qty
+            product_id
+            ,item_id as transact_qty
             ,bprice
             ,sprice
         FROM order_straddle
-        WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
-        '
-    ;
+        WHERE 
+            ARRAY[product_id,item_id] IN (
+                SELECT 
+                    ARRAY[
+                         product_id
+                        ,MAX(item_id)
+                    ] 
+                FROM order_straddle
+                WHERE 
+                    bprice>=sprice
+                GROUP BY product_id
+            )
 
-    
+        '
+        --WHERE item_id = (SELECT item_id-1 as k FROM order_straddle WHERE bprice>=sprice ORDER BY item_id DESC limit 1)
+    ;
     
 END
 $$ LANGUAGE PLPGSQL
