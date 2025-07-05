@@ -17,6 +17,7 @@ DROP FUNCTION  IF EXISTS auc_run;
 -- Proc description: Verify that a relation is valid and complete buy orderlist (any proc which takes a buy order list as an input should accept this buy orderlist without issues)
 -- Proc inputs: relation
 -- Proc output: boolean (true/false)
+-- Proc example: SELECT auc_buyorderlist_validate_verbose (buy_order_list)
 
 CREATE OR REPLACE FUNCTION auc_validate_buyorderlist_verbose (table_to_check regclass)
 RETURNS TABLE (test TEXT, type_check BOOLEAN, not_null BOOLEAN)
@@ -289,6 +290,7 @@ BEGIN
     EXECUTE format('
         CREATE TABLE %I (
         order_id   SERIAL  
+        ,product_id INT    NOT NULL DEFAULT 1
         ,buyer_id   INT     NOT NULL
         ,qty        INT     NOT NULL
         ,price      money   NOT NULL
@@ -322,6 +324,7 @@ BEGIN
     EXECUTE format('
         CREATE TABLE %I (
             order_id   SERIAL  
+            ,product_id INT    NOT NULL DEFAULT 1
             ,seller_id  INT     NOT NULL
             ,qty        INT     NOT NULL
             ,price      money   NOT NULL
@@ -356,6 +359,7 @@ BEGIN
     EXECUTE format('
         CREATE TABLE %I (
             transact_id     SERIAL
+            ,product_id INT NOT NULL DEFAULT 1
             ,type           text NOT NULL --(''buy'' or ''sell'')
             ,entity_id      INT NOT NULL --buyer_id or seller_id depending on type
             ,qty            INT NOT NULL
@@ -384,6 +388,7 @@ $$ LANGUAGE PLPGSQL
 CREATE OR REPLACE FUNCTION auc_findk(
      buyorderlist text
     ,sellorderlist text
+    
 )
 RETURNS 
 TABLE (
