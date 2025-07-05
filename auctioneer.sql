@@ -12,15 +12,17 @@ CALL auc_create_transactionlist('transaction_list');
 
 
 
-INSERT INTO buyer_order_list (buyer_id,qty,price)
+INSERT INTO buyer_order_list (buyer_id,product_id,qty,price)
 SELECT 
      buyer_id
+    ,product_id
     ,sum(qty)
     ,price
 FROM
     (
     SELECT 
         buyer_id
+        ,product_id
         --,buyer_bid_id
         ,CEIL(RANDOM()*100)::INT AS qty
         ,CEIL(RANDOM()*100)::numeric::money AS price
@@ -29,6 +31,7 @@ FROM
             SELECT 
                 buyer_id
                 ,generate_series(1,CEIL(RANDOM()*1)::INT) AS buyer_bid_id
+                ,CEIL(RANDOM()*5)::INT AS product_id
 
             FROM
                 (SELECT generate_series(1,100) AS buyer_id) as buyer_list
@@ -37,6 +40,7 @@ FROM
     ) AS agg_buyer_bidlist 
 GROUP BY
      buyer_id
+    ,product_id
     ,price
 --ON CONFLICT (buyer_id,price) DO UPDATE
 --    SET qty = buyer_order_list.qty + excluded.qty
@@ -45,15 +49,17 @@ GROUP BY
 
 
 
-INSERT INTO seller_order_list (seller_id,qty,price)
+INSERT INTO seller_order_list (seller_id,product_id,qty,price)
 SELECT 
      seller_id
+    ,product_id
     ,sum(qty)
     ,price
 FROM
     (
     SELECT 
         seller_id
+        ,product_id
         --,seller_bid_id
         ,CEIL(RANDOM()*100)::INT AS qty
         ,CEIL(RANDOM()*100)::numeric::money AS price
@@ -62,6 +68,7 @@ FROM
             SELECT 
                 seller_id
                 ,generate_series(1,CEIL(RANDOM()*1)::INT) AS seller_bid_id
+                ,CEIL(RANDOM()*5)::INT AS product_id
 
             FROM
                 (SELECT generate_series(1,50) AS seller_id) as seller_list
@@ -70,6 +77,7 @@ FROM
     ) AS agg_seller_bidlist 
 GROUP BY
      seller_id
+    ,product_id
     ,price
 --ON CONFLICT (seller_id,price) DO UPDATE
 --    SET qty = seller_order_list.qty + excluded.qty
