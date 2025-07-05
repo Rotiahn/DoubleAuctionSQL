@@ -84,33 +84,54 @@ GROUP BY
 ;
 
 
-INSERT INTO transaction_list (type,entity_id,qty,price)
+INSERT INTO transaction_list (type,product_id,entity_id,qty,price)
 SELECT (auc_run('buyer_order_list','seller_order_list')).*
 ;
 
 
 
-WITH stats AS (
+WITH buyers AS (
     SELECT 
         type
+        ,product_id
         ,count(DISTINCT entity_id) AS participants
         ,sum(qty) AS qty
         ,sum(qty*price) AS transaction_amt
     FROM
         transaction_list
+    WHERE 
+        type='buy'
     GROUP BY
         type
+        ,product_id
+),sellers AS (
+    SELECT 
+        type
+        ,product_id
+        ,count(DISTINCT entity_id) AS participants
+        ,sum(qty) AS qty
+        ,sum(qty*price) AS transaction_amt
+    FROM
+        transaction_list
+    WHERE 
+        type='sell'
+    GROUP BY
+        type
+        ,product_id
 )
 SELECT 
-     (SELECT participants from stats where type='buy')  AS buyers
-    ,(SELECT participants from stats where type='sell') AS sellers
-    ,(SELECT MIN(qty) from stats) AS qty_transacted
-    ,(SELECT transaction_amt from stats WHERE type='sell') AS dollars_transfered
-    ,(
-         (SELECT transaction_amt from stats WHERE type='buy') 
-        -(SELECT transaction_amt from stats WHERE type='sell') 
-    ) AS auctioneer_profit
-
+     buyers.product_id
+    ,buyers.participants AS buyers
+    ,sellers.participants AS sellers
+    ,sellers.qty AS qty_transacted
+    ,buyers.qty - sellers.qty AS extra_demand
+    ,sellers.transaction_amt AS dollars_transfered
+    ,buyers.transaction_amt - sellers.transaction_amt AS auctioneer_profit
+FROM
+    buyers
+    ,sellers
+WHERE   
+        buyers.product_id = sellers.product_id
 ;
 
     
