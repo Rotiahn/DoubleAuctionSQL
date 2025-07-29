@@ -337,7 +337,7 @@ BEGIN
         ,qty        INT     NOT NULL
         ,price      money   NOT NULL
 
-        ,UNIQUE(buyer_id,price)
+        ,UNIQUE(buyer_id,product_id,price)
         )
         ;
     ', tablename)
@@ -371,7 +371,7 @@ BEGIN
             ,qty        INT     NOT NULL
             ,price      money   NOT NULL
 
-            ,UNIQUE(seller_id,price)
+            ,UNIQUE(seller_id,product_id,price)
             )
         ;
     ', tablename)
